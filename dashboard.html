@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Guru Terzonasi + Reset</title>
+    <title>Dashboard Guru Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -109,7 +109,7 @@
                 </div>
 
                 <div id="controlsAbsen" class="flex gap-2">
-                        <button onclick="laporWaGrup()" class="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold shadow border border-green-600">📢 Lapor WA</button>
+                        <button onclick="laporWaGrup()" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs font-bold shadow border border-green-600 transition">📢 Lapor WA</button>
                         <button onclick="toggleKamera()" class="bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold shadow">📷 Scan QR</button>
                 </div>
             </div>
@@ -172,8 +172,6 @@
         const semuaKelas = [...kelas1dan2, ...kelas3dan4, ...kelas5dan6];
 
         // --- SISTEM DETEKSI ---
-        
-        // A. JIKA GURU KELAS
         if (emailLower.includes('gurukelas')) {
             mapelOtomatis = 'KELAS';
             isGuruKelas = true;
@@ -185,22 +183,9 @@
                 alert("Format email Guru Kelas harus: gurukelas[namakelas]@sekolah.com");
             }
         } 
-        // B. JIKA GURU PJOK 1 (Kelas 1-2)
-        else if (emailLower.includes('pjok1')) {
-            mapelOtomatis = 'PJOK';
-            kelasDiizinkan = kelas1dan2;
-        }
-        // C. JIKA GURU PJOK 2 (Kelas 3-4)
-        else if (emailLower.includes('pjok2')) {
-            mapelOtomatis = 'PJOK';
-            kelasDiizinkan = kelas3dan4;
-        }
-        // D. JIKA GURU PJOK 3 (Kelas 5-6)
-        else if (emailLower.includes('pjok3')) {
-            mapelOtomatis = 'PJOK';
-            kelasDiizinkan = kelas5dan6;
-        }
-        // E. JIKA GURU MAPEL LAIN
+        else if (emailLower.includes('pjok1')) { mapelOtomatis = 'PJOK'; kelasDiizinkan = kelas1dan2; }
+        else if (emailLower.includes('pjok2')) { mapelOtomatis = 'PJOK'; kelasDiizinkan = kelas3dan4; }
+        else if (emailLower.includes('pjok3')) { mapelOtomatis = 'PJOK'; kelasDiizinkan = kelas5dan6; }
         else {
             kelasDiizinkan = semuaKelas;
             if (emailLower.includes('pai')) mapelOtomatis = 'PAI';
@@ -215,6 +200,7 @@
         let semesterAktif = 'smt1';
         let html5QrcodeScanner = null;
         let dataAbsenHarian = {};
+        let dataNamaSiswa = {}; // MENYIMPAN NAMA UNTUK LAPORAN
         let unsubscribeNilai = null;
 
         // --- SAAT HALAMAN DIBUKA (ONLOAD) ---
@@ -241,7 +227,7 @@
                 alert("Gagal mendeteksi kelas. Cek format email.");
             } else {
                 if(kelasDiizinkan.length === 0) {
-                    container.innerHTML = "<p class='text-red-500'>Tidak ada kelas yang diizinkan untuk akun ini.</p>";
+                    container.innerHTML = "<p class='text-red-500'>Tidak ada kelas yang diizinkan.</p>";
                 } else {
                     kelasDiizinkan.forEach(namaKelas => {
                         let btn = document.createElement("button");
@@ -276,6 +262,8 @@
             const bodyNilai = document.getElementById('bodyNilai');
             listAbsen.innerHTML = '<p class="text-center text-gray-400 py-4">🔄 Mengambil data kelas...</p>';
             bodyNilai.innerHTML = '';
+            
+            dataNamaSiswa = {}; // Reset nama siswa
 
             try {
                 // AMBIL DATA SISWA
@@ -292,6 +280,7 @@
 
                 siswa.forEach(s => {
                     dataAbsenHarian[s.id] = 'H'; 
+                    dataNamaSiswa[s.id] = s.nama; // SIMPAN NAMA UTK WA
                     
                     listAbsen.innerHTML += `
                     <div class="flex items-center justify-between border-b border-gray-100 pb-2">
@@ -331,7 +320,6 @@
             
             const namaFile = `${mapelOtomatis}_${kelasSaatIni}_${semesterAktif}`;
             
-            // LISTENER REALTIME: Kalau file dihapus/diupdate, tampilan menyesuaikan otomatis
             unsubscribeNilai = db.collection("nilai_siswa").doc(namaFile).onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
@@ -350,7 +338,6 @@
                         }
                     });
                 } else {
-                    // JIKA FILE TIDAK ADA (ATAU DIHAPUS), BERSIHKAN INPUT
                     document.querySelectorAll('.input-kecil').forEach(i => i.value = '');
                     document.querySelectorAll('.col-na').forEach(s => s.innerText = '0');
                 }
@@ -423,7 +410,6 @@
             }
         }
 
-        // --- FITUR BARU: RESET NILAI ---
         async function resetNilai() {
             if(!confirm(`⚠️ PERINGATAN KERAS!\n\nAnda yakin ingin MENGHAPUS SEMUA NILAI:\nMapel: ${mapelOtomatis}\nKelas: ${kelasSaatIni}\nSemester: ${semesterAktif === 'smt1' ? '1' : '2'}?\n\nData yang dihapus tidak bisa dikembalikan!`)) return;
 
@@ -432,7 +418,6 @@
             try {
                 await db.collection("nilai_siswa").doc(namaFile).delete();
                 alert("🗑️ Data nilai berhasil dibersihkan!");
-                // Tidak perlu reload, listener akan otomatis mengosongkan tabel
             } catch(e) {
                 alert("Gagal reset: " + e.message);
             }
@@ -484,8 +469,49 @@
             else { r.style.display='block'; html5QrcodeScanner = new Html5QrcodeScanner("reader", {fps:10, qrbox:250}); html5QrcodeScanner.render((txt)=>{alert("QR: "+txt);}, ()=>{}); }
         }
 
+        // --- FITUR BARU: LAPORAN WA DETAIL ---
         function laporWaGrup() {
-            window.open(`https://wa.me/?text=Laporan%20Absensi%20Kelas%20${kelasSaatIni}%20(${mapelOtomatis})`, '_blank');
+            // 1. Siapkan Array Penampung
+            let sakit = [], izin = [], alpha = [], hadir = 0;
+
+            // 2. Loop Data
+            Object.keys(dataNamaSiswa).forEach(id => {
+                const nama = dataNamaSiswa[id];
+                const status = dataAbsenHarian[id] || 'H'; // Default Hadir
+
+                if(status === 'S') sakit.push(nama);
+                else if(status === 'I') izin.push(nama);
+                else if(status === 'A') alpha.push(nama);
+                else hadir++;
+            });
+
+            // 3. Format Tanggal
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date().toLocaleDateString('id-ID', options);
+
+            // 4. Susun Pesan
+            let text = `🏫 *LAPORAN ABSENSI*\n`;
+            text += `📚 Mapel: ${mapelOtomatis}\n`;
+            text += `🎓 Kelas: ${kelasSaatIni}\n`;
+            text += `📅 ${today}\n\n`;
+
+            text += `🤒 *SAKIT (${sakit.length})*\n`;
+            text += sakit.length > 0 ? "- " + sakit.join("\n- ") : "- Nihil";
+            text += `\n\n`;
+
+            text += `📝 *IZIN (${izin.length})*\n`;
+            text += izin.length > 0 ? "- " + izin.join("\n- ") : "- Nihil";
+            text += `\n\n`;
+
+            text += `❌ *ALPHA (${alpha.length})*\n`;
+            text += alpha.length > 0 ? "- " + alpha.join("\n- ") : "- Nihil";
+            text += `\n\n`;
+
+            text += `✅ *HADIR: ${hadir} Siswa*\n`;
+            text += `📊 *Total: ${Object.keys(dataNamaSiswa).length} Siswa*`;
+
+            // 5. Kirim
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
         
         function downloadNilai() {
