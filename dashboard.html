@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Guru Pro</title>
+    <title>Dashboard Guru: Full Fitur</title>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -92,7 +92,8 @@
                     </h2>
                     <p class="text-[10px] text-gray-400 mt-1">Mapel: <span id="labelMapelDisplay" class="font-bold text-blue-600">...</span></p>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex items-center gap-2">
+                    <button onclick="tambahMuridBaru()" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-2 py-1 rounded text-[10px] font-bold border border-blue-200 shadow-sm transition">➕ Tambah Murid</button>
                     <span id="infoSiswa" class="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">0 Siswa</span>
                 </div>
             </div>
@@ -162,26 +163,21 @@
         const emailLower = emailGuru.toLowerCase();
         
         let kelasDiizinkan = []; 
-        let mapelOtomatis = 'PJOK'; // Default
+        let mapelOtomatis = 'PJOK'; 
         let isGuruKelas = false;
         
-        // --- DAFTAR KELAS FULL ---
         const kelas1dan2 = ['1A','1B','1C','1D','2A','2B','2C','2D','2E'];
         const kelas3dan4 = ['3A','3B','3C','3D','3E','4A','4B','4C','4D','4E','4F'];
         const kelas5dan6 = ['5A','5B','5C','5D','5E','6A','6B','6C','6D','6E'];
         const semuaKelas = [...kelas1dan2, ...kelas3dan4, ...kelas5dan6];
 
-        // --- SISTEM DETEKSI ---
         if (emailLower.includes('gurukelas')) {
             mapelOtomatis = 'KELAS';
             isGuruKelas = true;
             const regex = /gurukelas([a-z0-9]+)/;
             const match = emailLower.match(regex);
-            if (match && match[1]) {
-                kelasDiizinkan.push(match[1].toUpperCase());
-            } else {
-                alert("Format email Guru Kelas harus: gurukelas[namakelas]@sekolah.com");
-            }
+            if (match && match[1]) { kelasDiizinkan.push(match[1].toUpperCase()); } 
+            else { alert("Format email Guru Kelas harus: gurukelas[namakelas]@sekolah.com"); }
         } 
         else if (emailLower.includes('pjok1')) { mapelOtomatis = 'PJOK'; kelasDiizinkan = kelas1dan2; }
         else if (emailLower.includes('pjok2')) { mapelOtomatis = 'PJOK'; kelasDiizinkan = kelas3dan4; }
@@ -200,13 +196,11 @@
         let semesterAktif = 'smt1';
         let html5QrcodeScanner = null;
         let dataAbsenHarian = {};
-        let dataNamaSiswa = {}; // MENYIMPAN NAMA UNTUK LAPORAN
+        let dataNamaSiswa = {}; 
         let unsubscribeNilai = null;
 
-        // --- SAAT HALAMAN DIBUKA (ONLOAD) ---
         window.onload = function() {
             document.getElementById('welcomeMsg').innerText = emailGuru;
-            
             const dropdown = document.getElementById('pilihMapel');
             dropdown.value = mapelOtomatis;
             document.getElementById('labelMapelDisplay').innerText = mapelOtomatis;
@@ -243,8 +237,6 @@
             updateTombolSimpan();
         };
 
-        // --- FUNGSI UTAMA ---
-
         async function loadKelas(namaKelas, btnElement) {
             kelasSaatIni = namaKelas;
             
@@ -263,7 +255,7 @@
             listAbsen.innerHTML = '<p class="text-center text-gray-400 py-4">🔄 Mengambil data kelas...</p>';
             bodyNilai.innerHTML = '';
             
-            dataNamaSiswa = {}; // Reset nama siswa
+            dataNamaSiswa = {}; 
 
             try {
                 // AMBIL DATA SISWA
@@ -276,15 +268,19 @@
                 document.getElementById('infoSiswa').innerText = siswa.length + " Siswa";
                 listAbsen.innerHTML = '';
 
-                if(siswa.length === 0) listAbsen.innerHTML = '<p class="text-center text-red-400">Belum ada siswa di database.</p>';
+                if(siswa.length === 0) listAbsen.innerHTML = '<p class="text-center text-red-400">Belum ada siswa.</p>';
 
                 siswa.forEach(s => {
                     dataAbsenHarian[s.id] = 'H'; 
-                    dataNamaSiswa[s.id] = s.nama; // SIMPAN NAMA UTK WA
+                    dataNamaSiswa[s.id] = s.nama; 
                     
+                    // --- MODIFIKASI: MENAMBAHKAN TOMBOL HAPUS (X) ---
                     listAbsen.innerHTML += `
                     <div class="flex items-center justify-between border-b border-gray-100 pb-2">
-                        <span class="font-bold text-gray-700 text-sm truncate w-1/2">${s.nama}</span>
+                        <div class="flex items-center gap-2 w-1/2 overflow-hidden">
+                            <button onclick="hapusSiswa('${s.id}', '${s.nama}')" class="text-[10px] text-gray-300 hover:text-red-600 font-bold transition" title="Hapus Siswa">❌</button>
+                            <span class="font-bold text-gray-700 text-sm truncate">${s.nama}</span>
+                        </div>
                         <div class="flex space-x-1">
                             <button onclick="setAbsenManual('${s.id}','H',this)" class="w-7 h-7 rounded-full border text-[10px] font-bold bg-green-500 text-white">H</button>
                             <button onclick="setAbsenManual('${s.id}','S',this)" class="w-7 h-7 rounded-full border text-[10px] font-bold text-gray-400 hover:bg-blue-500 hover:text-white">S</button>
@@ -315,11 +311,40 @@
             }
         }
 
+        async function tambahMuridBaru() {
+            let namaBaru = prompt(`Masukkan Nama Siswa Baru untuk Kelas ${kelasSaatIni}:`);
+            if (namaBaru && namaBaru.trim() !== "") {
+                namaBaru = namaBaru.toUpperCase(); 
+                try {
+                    await db.collection("kelas").doc(kelasSaatIni).collection("siswa").add({
+                        nama: namaBaru
+                    });
+                    alert(`✅ Berhasil menambahkan siswa: ${namaBaru}`);
+                    loadKelas(kelasSaatIni, null); 
+                } catch (e) {
+                    alert("Gagal menambah siswa: " + e.message);
+                }
+            }
+        }
+
+        // --- FITUR BARU: HAPUS SISWA ---
+        async function hapusSiswa(idSiswa, namaSiswa) {
+            // Konfirmasi Pengaman
+            if(!confirm(`⚠️ Yakin ingin MENGHAPUS siswa:\n\nNama: ${namaSiswa}\nKelas: ${kelasSaatIni}\n\nSiswa ini akan hilang dari daftar absen dan nilai.`)) return;
+
+            try {
+                // Hapus dokumen siswa dari Firestore
+                await db.collection("kelas").doc(kelasSaatIni).collection("siswa").doc(idSiswa).delete();
+                alert("✅ Siswa berhasil dihapus.");
+                loadKelas(kelasSaatIni, null); // Refresh halaman agar siswa hilang
+            } catch(e) {
+                alert("Gagal menghapus siswa: " + e.message);
+            }
+        }
+
         function listenDataNilai() {
             if(unsubscribeNilai) unsubscribeNilai();
-            
             const namaFile = `${mapelOtomatis}_${kelasSaatIni}_${semesterAktif}`;
-            
             unsubscribeNilai = db.collection("nilai_siswa").doc(namaFile).onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
@@ -414,7 +439,6 @@
             if(!confirm(`⚠️ PERINGATAN KERAS!\n\nAnda yakin ingin MENGHAPUS SEMUA NILAI:\nMapel: ${mapelOtomatis}\nKelas: ${kelasSaatIni}\nSemester: ${semesterAktif === 'smt1' ? '1' : '2'}?\n\nData yang dihapus tidak bisa dikembalikan!`)) return;
 
             const namaFile = `${mapelOtomatis}_${kelasSaatIni}_${semesterAktif}`;
-            
             try {
                 await db.collection("nilai_siswa").doc(namaFile).delete();
                 alert("🗑️ Data nilai berhasil dibersihkan!");
@@ -469,48 +493,26 @@
             else { r.style.display='block'; html5QrcodeScanner = new Html5QrcodeScanner("reader", {fps:10, qrbox:250}); html5QrcodeScanner.render((txt)=>{alert("QR: "+txt);}, ()=>{}); }
         }
 
-        // --- FITUR BARU: LAPORAN WA DETAIL ---
         function laporWaGrup() {
-            // 1. Siapkan Array Penampung
             let sakit = [], izin = [], alpha = [], hadir = 0;
-
-            // 2. Loop Data
             Object.keys(dataNamaSiswa).forEach(id => {
                 const nama = dataNamaSiswa[id];
-                const status = dataAbsenHarian[id] || 'H'; // Default Hadir
-
+                const status = dataAbsenHarian[id] || 'H';
                 if(status === 'S') sakit.push(nama);
                 else if(status === 'I') izin.push(nama);
                 else if(status === 'A') alpha.push(nama);
                 else hadir++;
             });
 
-            // 3. Format Tanggal
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const today = new Date().toLocaleDateString('id-ID', options);
 
-            // 4. Susun Pesan
-            let text = `🏫 *LAPORAN ABSENSI*\n`;
-            text += `📚 Mapel: ${mapelOtomatis}\n`;
-            text += `🎓 Kelas: ${kelasSaatIni}\n`;
-            text += `📅 ${today}\n\n`;
+            let text = `🏫 *LAPORAN ABSENSI*\n📚 Mapel: ${mapelOtomatis}\n🎓 Kelas: ${kelasSaatIni}\n📅 ${today}\n\n`;
+            text += `🤒 *SAKIT (${sakit.length})*\n` + (sakit.length > 0 ? "- " + sakit.join("\n- ") : "- Nihil") + `\n\n`;
+            text += `📝 *IZIN (${izin.length})*\n` + (izin.length > 0 ? "- " + izin.join("\n- ") : "- Nihil") + `\n\n`;
+            text += `❌ *ALPHA (${alpha.length})*\n` + (alpha.length > 0 ? "- " + alpha.join("\n- ") : "- Nihil") + `\n\n`;
+            text += `✅ *HADIR: ${hadir} Siswa*\n📊 *Total: ${Object.keys(dataNamaSiswa).length} Siswa*`;
 
-            text += `🤒 *SAKIT (${sakit.length})*\n`;
-            text += sakit.length > 0 ? "- " + sakit.join("\n- ") : "- Nihil";
-            text += `\n\n`;
-
-            text += `📝 *IZIN (${izin.length})*\n`;
-            text += izin.length > 0 ? "- " + izin.join("\n- ") : "- Nihil";
-            text += `\n\n`;
-
-            text += `❌ *ALPHA (${alpha.length})*\n`;
-            text += alpha.length > 0 ? "- " + alpha.join("\n- ") : "- Nihil";
-            text += `\n\n`;
-
-            text += `✅ *HADIR: ${hadir} Siswa*\n`;
-            text += `📊 *Total: ${Object.keys(dataNamaSiswa).length} Siswa*`;
-
-            // 5. Kirim
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
         
