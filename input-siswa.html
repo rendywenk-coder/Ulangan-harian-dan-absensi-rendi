@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Input Siswa - Admin Rendi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        window.onerror = function(msg, url, line) {
+            alert("⚠️ TERJADI ERROR:\n" + msg + "\n\nCoba periksa koneksi internet atau copy ulang kodenya.");
+        };
+    </script>
+
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: #FFFBEB;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center; min-height: 100vh;
+            color: #4C1D95;
+        }
+        .container {
+            background: white; width: 100%; max-width: 500px;
+            padding: 30px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 3px solid #F3F4F6;
+            height: fit-content;
+        }
+        h2 { margin-top: 0; color: #8B5CF6; }
+        
+        label { display: block; margin-top: 15px; font-weight: 700; font-size: 14px; }
+        
+        input, textarea {
+            width: 100%; padding: 12px; margin-top: 5px;
+            background: #F9FAFB; border: 2px solid #E5E7EB; border-radius: 10px;
+            font-family: 'Quicksand'; font-weight: 600; box-sizing: border-box;
+        }
+        textarea { height: 150px; resize: vertical; }
+        
+        button {
+            width: 100%; padding: 15px; margin-top: 20px;
+            background: #14B8A6; color: white; border: none; border-radius: 50px;
+            font-weight: 800; font-size: 16px; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(20, 184, 166, 0.4);
+            transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.02); }
+        button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
+        .status { margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 700; display: none; }
+        .success { background: #D1FAE5; color: #065F46; }
+        .loading { background: #DBEAFE; color: #1E40AF; }
+
+        .btn-back {
+            background: white; border: 2px solid #8B5CF6; color: #8B5CF6; margin-top: 10px;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>⚡ Input Siswa Kilat</h2>
+        <p style="font-size:13px; color:#666;">Masukkan nama siswa (Satu baris = satu siswa).</p>
+
+        <label>Kode Kelas (Wajib Huruf Besar, cth: 2E):</label>
+        <input type="text" id="namaKelas" placeholder="Ketik Kode Kelas..." onkeyup="this.value = this.value.toUpperCase()">
+
+        <label>Daftar Nama Siswa (Copy dari Excel):</label>
+        <textarea id="listNama" placeholder="Andi Saputra&#10;Budi Santoso&#10;Citra Lestari..."></textarea>
+
+        <button id="btnSimpan" onclick="simpanData()">🚀 SIMPAN SEMUA</button>
+        <div id="statusMsg" class="status"></div>
+
+        <button class="btn-back" onclick="window.location.href='dashboard.html'">Kembali ke Dashboard</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // CONFIG FIREBASE (Sama dengan Dashboard)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBag0TddnPkC8pVDxAFDWAvFpmQRED3XU",
+            authDomain: "pembelajaran-digital-rendi.firebaseapp.com",
+            projectId: "pembelajaran-digital-rendi",
+            storageBucket: "pembelajaran-digital-rendi.firebasestorage.app",
+            messagingSenderId: "1075680489582",
+            appId: "1:1075680489582:web:f69af224ebe08748b4b67f"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.simpanData = async function() {
+            const namaKelas = document.getElementById('namaKelas').value.trim();
+            const textNama = document.getElementById('listNama').value;
+            const btn = document.getElementById('btnSimpan');
+            const status = document.getElementById('statusMsg');
+
+            if (!namaKelas) { alert("Nama Kelas wajib diisi!"); return; }
+            if (!textNama) { alert("Daftar Nama wajib diisi!"); return; }
+
+            const arrayNama = textNama.split('\n').filter(n => n.trim() !== '');
+            if (arrayNama.length === 0) return;
+
+            // Tampilkan Loading
+            btn.disabled = true;
+            btn.innerText = "Sedang Memproses...";
+            status.className = "status loading";
+            status.innerText = `Menyimpan ${arrayNama.length} siswa ke kelas ${namaKelas}...`;
+            status.style.display = 'block';
+
+            try {
+                // 1. Simpan/Update Data Induk Kelas (Agar muncul di Dashboard)
+                await setDoc(doc(db, "kelas", namaKelas), { 
+                    namaKelas: namaKelas,
+                    dibuat: serverTimestamp() 
+                }, { merge: true });
+
+                // 2. Simpan Siswa Secara Rombongan (Batch) - Super Cepat
+                const batch = writeBatch(db);
+                
+                arrayNama.forEach((nama) => {
+                    nama = nama.trim();
+                    // ID Siswa = KELAS_NAMA (diganti spasi jadi underscore)
+                    const idSiswa = `${namaKelas}_${nama.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, '_').toLowerCase()}`;
+                    const docRef = doc(db, "kelas", namaKelas, "siswa", idSiswa);
+                    
+                    batch.set(docRef, {
+                        nama: nama,
+                        kelas: namaKelas,
+                        dibuat: serverTimestamp()
+                    });
+                });
+
+                await batch.commit(); // Kirim semua sekaligus
+
+                // Berhasil
+                status.className = "status success";
+                status.innerHTML = `✅ <b>BERHASIL!</b> Kelas <b>${namaKelas}</b> telah dibuat dan <b>${arrayNama.length} Siswa</b> berhasil dimasukkan.<br>Silakan kembali ke Dashboard.`;
+                document.getElementById('listNama').value = ""; // Kosongkan input nama
+                
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Gagal: " + error.message;
+                status.className = "status";
+                status.style.background = "#FEE2E2";
+                status.style.color = "#EF4444";
+                alert("Gagal Menyimpan: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "🚀 SIMPAN SEMUA";
+            }
+        }
+    </script>
+</body>
+</html>

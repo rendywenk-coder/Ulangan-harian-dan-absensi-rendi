@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Guru Terzonasi + Reset</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+    <script>
+        // --- 🛡️ SATPAM (CHECKER) ---
+        (function() {
+            const emailGuru = sessionStorage.getItem('emailGuru');
+            if (!emailGuru) {
+                window.location.href = 'index.html';
+            }
+        })();
+    </script>
+
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #FFFBEB; }
+        .header-bg { background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); }
+        
+        .btn-kelas { 
+            background: white; border: 1px solid #CBD5E1; color: #64748B; 
+            border-radius: 8px; padding: 10px 15px; font-weight: bold; font-size: 14px; transition: 0.2s;
+            min-width: 60px;
+        }
+        .btn-kelas:hover { border-color: #3B82F6; color: #3B82F6; }
+        .btn-kelas.active { background: #2563EB; border-color: #2563EB; color: white; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3); }
+
+        .tab-btn { background: white; color: #9CA3AF; border: 1px solid #E5E7EB; padding: 8px 20px; border-radius: 99px; font-weight: bold; transition: 0.3s; font-size: 13px;}
+        .tab-btn.active-tab { background: #2563EB; color: white; border-color: #2563EB; }
+
+        .tabel-nilai { width: 100%; border-collapse: collapse; min-width: 800px; }
+        .tabel-nilai th { background: #F3F4F6; padding: 8px; font-size: 11px; color: #4B5563; border: 1px solid #E5E7EB; text-transform: uppercase;}
+        .tabel-nilai td { padding: 4px; border: 1px solid #E5E7EB; text-align: center; }
+        
+        .input-kecil { width: 100%; padding: 5px; text-align: center; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #374151; }
+        .input-kecil:focus { background: #FFF7ED; outline: none; box-shadow: inset 0 0 0 2px #FDBA74; }
+        
+        .col-absen { background-color: #EFF6FF; } 
+        .col-ujian { background-color: #FFF7ED; }
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; margin-bottom: 15px; border: 2px solid #2563EB; display: none; }
+    </style>
+</head>
+<body class="pb-20">
+
+    <div class="header-bg p-5 rounded-b-3xl shadow-lg text-white mb-5">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-xl font-bold">🏫 Portal Guru</h1>
+                <p class="text-xs opacity-80" id="welcomeMsg">...</p>
+            </div>
+            <div class="flex flex-col items-end">
+                <label class="text-[10px] font-bold opacity-70">POSISI ANDA:</label>
+                <select id="pilihMapel" onchange="gantiMapelManual()" class="text-blue-900 text-xs font-bold py-1 px-2 rounded-lg shadow border-none outline-none bg-white">
+                    <option value="PJOK">🏆 GURU PJOK</option>
+                    <option value="KELAS">📚 GURU KELAS</option>
+                    <option value="PAI">🕌 GURU PAI</option>
+                    <option value="INGGRIS">🔤 B. INGGRIS</option>
+                    <option value="SENI">🎨 SENI BUDAYA</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-3">
+             <button onclick="keluarAplikasi()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-bold border border-red-400 shadow">Logout</button>
+        </div>
+    </div>
+
+    <div class="px-4 max-w-5xl mx-auto">
+        
+        <div id="containerKelas" class="flex flex-wrap gap-2 justify-center pb-4 mb-2"></div>
+
+        <div id="menuTab" class="flex justify-center space-x-2 mb-4 hidden">
+            <button id="tabAbsen" onclick="gantiMode('absen')" class="tab-btn active-tab">📷 Absensi</button>
+            <button id="tabNilai" onclick="gantiMode('nilai')" class="tab-btn">📊 Penilaian</button>
+        </div>
+
+        <div id="cardUtama" class="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 hidden">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <span id="judulMode">Absensi</span> 
+                        <span id="labelKelas" class="bg-blue-600 text-white px-2 py-0.5 rounded text-sm">...</span>
+                    </h2>
+                    <p class="text-[10px] text-gray-400 mt-1">Mapel: <span id="labelMapelDisplay" class="font-bold text-blue-600">...</span></p>
+                </div>
+                <div class="text-right">
+                    <span id="infoSiswa" class="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">0 Siswa</span>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 justify-between items-center bg-gray-50 p-2 rounded-lg mb-4">
+                <select id="pilihSemester" onchange="gantiSemester()" class="bg-white border border-gray-300 text-gray-700 text-xs rounded px-2 py-1 font-bold shadow-sm">
+                    <option value="smt1" selected>Semester 1</option>
+                    <option value="smt2">Semester 2</option>
+                </select>
+
+                <div id="controlsNilai" class="hidden flex gap-2">
+                    <button onclick="resetNilai()" class="bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 px-2 py-1 rounded text-xs font-bold shadow transition">🗑️ Reset</button>
+                    <button onclick="downloadNilai()" class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-bold shadow transition">📥 Excel</button>
+                </div>
+
+                <div id="controlsAbsen" class="flex gap-2">
+                        <button onclick="laporWaGrup()" class="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold shadow border border-green-600">📢 Lapor WA</button>
+                        <button onclick="toggleKamera()" class="bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold shadow">📷 Scan QR</button>
+                </div>
+            </div>
+
+            <div id="viewAbsen" class="space-y-4">
+                <div id="reader"></div>
+                <div id="listAbsenHarian" class="space-y-2 max-h-[400px] overflow-y-auto pr-1"></div>
+            </div>
+
+            <div id="viewNilai" class="hidden overflow-x-auto border rounded-xl shadow-inner">
+                <table class="tabel-nilai" id="tabelUtama">
+                    <thead>
+                        <tr>
+                            <th class="text-left sticky left-0 bg-white z-10 w-24">Nama</th>
+                            <th>UH1</th> <th>UH2</th> <th>UH3</th> <th>UH4</th>
+                            <th class="col-ujian" id="labelUjian">STS</th> 
+                            <th class="col-absen">A</th> <th class="col-absen">I</th> <th class="col-absen">S</th>
+                            <th class="col-na" style="background:#1F2937; color:white;">NA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyNilai"></tbody>
+                </table>
+            </div>
+
+            <button id="btnSimpan" onclick="simpanData()" class="w-full mt-5 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg text-sm transition">
+                💾 SIMPAN DATA
+            </button>
+        </div>
+
+        <div id="pesanAwal" class="text-center py-20 opacity-40 hidden">
+            <p>Silakan pilih kelas...</p>
+        </div>
+    </div>
+
+    <script>
+        // 1. SETUP FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBag0TddnPkC8pVDxAFDWAvFpmQRED3XU",
+            authDomain: "pembelajaran-digital-rendi.firebaseapp.com",
+            projectId: "pembelajaran-digital-rendi",
+            storageBucket: "pembelajaran-digital-rendi.firebasestorage.app",
+            messagingSenderId: "1075680489582",
+            appId: "1:1075680489582:web:f69af224ebe08748b4b67f"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 2. LOGIKA INTELEJEN (ZONASI GURU)
+        const emailGuru = sessionStorage.getItem('emailGuru') || "";
+        const emailLower = emailGuru.toLowerCase();
+        
+        let kelasDiizinkan = []; 
+        let mapelOtomatis = 'PJOK'; // Default
+        let isGuruKelas = false;
+        
+        // --- DAFTAR KELAS FULL ---
+        const kelas1dan2 = ['1A','1B','1C','1D','2A','2B','2C','2D','2E'];
+        const kelas3dan4 = ['3A','3B','3C','3D','3E','4A','4B','4C','4D','4E','4F'];
+        const kelas5dan6 = ['5A','5B','5C','5D','5E','6A','6B','6C','6D','6E'];
+        const semuaKelas = [...kelas1dan2, ...kelas3dan4, ...kelas5dan6];
+
+        // --- SISTEM DETEKSI ---
+        
+        // A. JIKA GURU KELAS
+        if (emailLower.includes('gurukelas')) {
+            mapelOtomatis = 'KELAS';
+            isGuruKelas = true;
+            const regex = /gurukelas([a-z0-9]+)/;
+            const match = emailLower.match(regex);
+            if (match && match[1]) {
+                kelasDiizinkan.push(match[1].toUpperCase());
+            } else {
+                alert("Format email Guru Kelas harus: gurukelas[namakelas]@sekolah.com");
+            }
+        } 
+        // B. JIKA GURU PJOK 1 (Kelas 1-2)
+        else if (emailLower.includes('pjok1')) {
+            mapelOtomatis = 'PJOK';
+            kelasDiizinkan = kelas1dan2;
+        }
+        // C. JIKA GURU PJOK 2 (Kelas 3-4)
+        else if (emailLower.includes('pjok2')) {
+            mapelOtomatis = 'PJOK';
+            kelasDiizinkan = kelas3dan4;
+        }
+        // D. JIKA GURU PJOK 3 (Kelas 5-6)
+        else if (emailLower.includes('pjok3')) {
+            mapelOtomatis = 'PJOK';
+            kelasDiizinkan = kelas5dan6;
+        }
+        // E. JIKA GURU MAPEL LAIN
+        else {
+            kelasDiizinkan = semuaKelas;
+            if (emailLower.includes('pai')) mapelOtomatis = 'PAI';
+            else if (emailLower.includes('inggris')) mapelOtomatis = 'INGGRIS';
+            else if (emailLower.includes('seni')) mapelOtomatis = 'SENI';
+            else mapelOtomatis = 'PJOK';
+        }
+
+        // Variabel Global
+        let kelasSaatIni = '';
+        let modeSaatIni = 'absen';
+        let semesterAktif = 'smt1';
+        let html5QrcodeScanner = null;
+        let dataAbsenHarian = {};
+        let unsubscribeNilai = null;
+
+        // --- SAAT HALAMAN DIBUKA (ONLOAD) ---
+        window.onload = function() {
+            document.getElementById('welcomeMsg').innerText = emailGuru;
+            
+            const dropdown = document.getElementById('pilihMapel');
+            dropdown.value = mapelOtomatis;
+            document.getElementById('labelMapelDisplay').innerText = mapelOtomatis;
+            
+            if(isGuruKelas) {
+                dropdown.disabled = true;
+                dropdown.style.opacity = "0.7"; 
+                dropdown.style.backgroundColor = "#E5E7EB";
+            }
+
+            const container = document.getElementById('containerKelas');
+            container.innerHTML = ""; 
+
+            if(isGuruKelas && kelasDiizinkan.length > 0) {
+                container.style.display = 'none'; 
+                loadKelas(kelasDiizinkan[0], null); 
+            } else if (isGuruKelas && kelasDiizinkan.length === 0) {
+                alert("Gagal mendeteksi kelas. Cek format email.");
+            } else {
+                if(kelasDiizinkan.length === 0) {
+                    container.innerHTML = "<p class='text-red-500'>Tidak ada kelas yang diizinkan untuk akun ini.</p>";
+                } else {
+                    kelasDiizinkan.forEach(namaKelas => {
+                        let btn = document.createElement("button");
+                        btn.className = "btn-kelas";
+                        btn.innerText = namaKelas;
+                        btn.onclick = function() { loadKelas(namaKelas, this); };
+                        container.appendChild(btn);
+                    });
+                    document.getElementById('pesanAwal').style.display = 'block';
+                    document.getElementById('pesanAwal').classList.remove('hidden');
+                }
+            }
+            updateTombolSimpan();
+        };
+
+        // --- FUNGSI UTAMA ---
+
+        async function loadKelas(namaKelas, btnElement) {
+            kelasSaatIni = namaKelas;
+            
+            if(btnElement) {
+                document.querySelectorAll('.btn-kelas').forEach(b => b.classList.remove('active'));
+                btnElement.classList.add('active');
+            }
+
+            document.getElementById('pesanAwal').style.display = 'none';
+            document.getElementById('cardUtama').classList.remove('hidden');
+            document.getElementById('menuTab').classList.remove('hidden');
+            document.getElementById('labelKelas').innerText = namaKelas;
+
+            const listAbsen = document.getElementById('listAbsenHarian');
+            const bodyNilai = document.getElementById('bodyNilai');
+            listAbsen.innerHTML = '<p class="text-center text-gray-400 py-4">🔄 Mengambil data kelas...</p>';
+            bodyNilai.innerHTML = '';
+
+            try {
+                // AMBIL DATA SISWA
+                const snapshot = await db.collection("kelas").doc(namaKelas).collection("siswa").get();
+                let siswa = [];
+                snapshot.forEach(doc => siswa.push({ id: doc.id, ...doc.data() }));
+                
+                siswa.sort((a,b) => (a.nama || "").localeCompare(b.nama || "")); 
+
+                document.getElementById('infoSiswa').innerText = siswa.length + " Siswa";
+                listAbsen.innerHTML = '';
+
+                if(siswa.length === 0) listAbsen.innerHTML = '<p class="text-center text-red-400">Belum ada siswa di database.</p>';
+
+                siswa.forEach(s => {
+                    dataAbsenHarian[s.id] = 'H'; 
+                    
+                    listAbsen.innerHTML += `
+                    <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                        <span class="font-bold text-gray-700 text-sm truncate w-1/2">${s.nama}</span>
+                        <div class="flex space-x-1">
+                            <button onclick="setAbsenManual('${s.id}','H',this)" class="w-7 h-7 rounded-full border text-[10px] font-bold bg-green-500 text-white">H</button>
+                            <button onclick="setAbsenManual('${s.id}','S',this)" class="w-7 h-7 rounded-full border text-[10px] font-bold text-gray-400 hover:bg-blue-500 hover:text-white">S</button>
+                            <button onclick="setAbsenManual('${s.id}','I',this)" class="w-7 h-7 rounded-full border text-[10px] font-bold text-gray-400 hover:bg-yellow-500 hover:text-white">I</button>
+                            <button onclick="setAbsenManual('${s.id}','A',this)" class="w-7 h-7 rounded-full border text-[10px] font-bold text-gray-400 hover:bg-red-500 hover:text-white">A</button>
+                        </div>
+                    </div>`;
+
+                    bodyNilai.innerHTML += `
+                    <tr id="row_${s.id}">
+                        <td class="sticky left-0 bg-white border-r px-2 text-[11px] font-bold text-left truncate" style="max-width:100px;">${s.nama}</td>
+                        <td><input type="number" id="uh1_${s.id}" oninput="hitung('${s.id}')" class="input-kecil" placeholder="-"></td>
+                        <td><input type="number" id="uh2_${s.id}" oninput="hitung('${s.id}')" class="input-kecil" placeholder="-"></td>
+                        <td><input type="number" id="uh3_${s.id}" oninput="hitung('${s.id}')" class="input-kecil" placeholder="-"></td>
+                        <td><input type="number" id="uh4_${s.id}" oninput="hitung('${s.id}')" class="input-kecil" placeholder="-"></td>
+                        <td class="col-ujian"><input type="number" id="ujian_${s.id}" oninput="hitung('${s.id}')" class="input-kecil text-blue-700" placeholder="-"></td>
+                        <td class="col-absen"><input type="number" id="a_${s.id}" oninput="hitung('${s.id}')" class="input-kecil text-red-500"></td>
+                        <td class="col-absen"><input type="number" id="i_${s.id}" oninput="hitung('${s.id}')" class="input-kecil text-yellow-600"></td>
+                        <td class="col-absen"><input type="number" id="s_${s.id}" oninput="hitung('${s.id}')" class="input-kecil text-blue-600"></td>
+                        <td class="col-na" id="na_${s.id}">0</td>
+                    </tr>`;
+                });
+
+                listenDataNilai(); 
+
+            } catch(e) {
+                alert("Gagal load data: " + e.message);
+            }
+        }
+
+        function listenDataNilai() {
+            if(unsubscribeNilai) unsubscribeNilai();
+            
+            const namaFile = `${mapelOtomatis}_${kelasSaatIni}_${semesterAktif}`;
+            
+            // LISTENER REALTIME: Kalau file dihapus/diupdate, tampilan menyesuaikan otomatis
+            unsubscribeNilai = db.collection("nilai_siswa").doc(namaFile).onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    Object.keys(data).forEach(id => {
+                        if(document.getElementById(`uh1_${id}`)) {
+                            const n = data[id];
+                            document.getElementById(`uh1_${id}`).value = n.uh1 || '';
+                            document.getElementById(`uh2_${id}`).value = n.uh2 || '';
+                            document.getElementById(`uh3_${id}`).value = n.uh3 || '';
+                            document.getElementById(`uh4_${id}`).value = n.uh4 || '';
+                            document.getElementById(`ujian_${id}`).value = n.ujian || '';
+                            document.getElementById(`a_${id}`).value = n.a || 0;
+                            document.getElementById(`i_${id}`).value = n.i || 0;
+                            document.getElementById(`s_${id}`).value = n.s || 0;
+                            document.getElementById(`na_${id}`).innerText = n.na || 0;
+                        }
+                    });
+                } else {
+                    // JIKA FILE TIDAK ADA (ATAU DIHAPUS), BERSIHKAN INPUT
+                    document.querySelectorAll('.input-kecil').forEach(i => i.value = '');
+                    document.querySelectorAll('.col-na').forEach(s => s.innerText = '0');
+                }
+            });
+        }
+
+        function hitung(id) {
+            let uh1 = parseFloat(document.getElementById(`uh1_${id}`).value) || 0;
+            let uh2 = parseFloat(document.getElementById(`uh2_${id}`).value) || 0;
+            let uh3 = parseFloat(document.getElementById(`uh3_${id}`).value) || 0;
+            let uh4 = parseFloat(document.getElementById(`uh4_${id}`).value) || 0;
+            let ujian = parseFloat(document.getElementById(`ujian_${id}`).value) || 0;
+            let a = parseInt(document.getElementById(`a_${id}`).value) || 0;
+            
+            let pembagi = 0;
+            if(uh1) pembagi++; if(uh2) pembagi++; if(uh3) pembagi++; if(uh4) pembagi++;
+            let rataUH = pembagi > 0 ? (uh1+uh2+uh3+uh4)/pembagi : 0;
+            
+            let nilai = (rataUH * 0.7) + (ujian * 0.3) - a; 
+            if(nilai < 0) nilai = 0;
+            document.getElementById(`na_${id}`).innerText = Math.round(nilai);
+        }
+
+        async function simpanData() {
+            const btn = document.getElementById('btnSimpan');
+            btn.innerText = "⏳ Menyimpan..."; btn.disabled = true;
+
+            const namaFile = `${mapelOtomatis}_${kelasSaatIni}_${semesterAktif}`;
+            const today = new Date().toISOString().split('T')[0];
+            
+            try {
+                if(modeSaatIni === 'absen') {
+                    await db.collection("absensi").doc(today).collection("log").doc(`${mapelOtomatis}_${kelasSaatIni}`).set({
+                        data: dataAbsenHarian, waktu: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    const nilaiRef = db.collection("nilai_siswa").doc(namaFile);
+                    const snap = await nilaiRef.get();
+                    let currentData = snap.exists ? snap.data() : {};
+
+                    Object.keys(dataAbsenHarian).forEach(id => {
+                        const sts = dataAbsenHarian[id];
+                        if(!currentData[id]) currentData[id] = {};
+                        if(sts === 'A') currentData[id].a = (parseInt(currentData[id].a)||0) + 1;
+                        if(sts === 'I') currentData[id].i = (parseInt(currentData[id].i)||0) + 1;
+                        if(sts === 'S') currentData[id].s = (parseInt(currentData[id].s)||0) + 1;
+                    });
+                    await nilaiRef.set(currentData, {merge:true});
+                    alert(`✅ Absensi ${mapelOtomatis} Kelas ${kelasSaatIni} Tersimpan!`);
+
+                } else {
+                    let dataToSave = {};
+                    document.querySelectorAll('#bodyNilai tr').forEach(row => {
+                        const inputs = row.querySelectorAll('input');
+                        const idSiswa = inputs[0].id.split('_')[1];
+                        dataToSave[idSiswa] = {
+                            uh1: inputs[0].value, uh2: inputs[1].value, uh3: inputs[2].value, uh4: inputs[3].value,
+                            ujian: inputs[4].value, a: inputs[5].value, i: inputs[6].value, s: inputs[7].value,
+                            na: document.getElementById(`na_${idSiswa}`).innerText
+                        };
+                    });
+                    await db.collection("nilai_siswa").doc(namaFile).set(dataToSave, {merge:true});
+                    alert("✅ Data Nilai Tersimpan!");
+                }
+            } catch(e) {
+                alert("Gagal menyimpan: " + e.message);
+            } finally {
+                updateTombolSimpan();
+                btn.disabled = false;
+            }
+        }
+
+        // --- FITUR BARU: RESET NILAI ---
+        async function resetNilai() {
+            if(!confirm(`⚠️ PERINGATAN KERAS!\n\nAnda yakin ingin MENGHAPUS SEMUA NILAI:\nMapel: ${mapelOtomatis}\nKelas: ${kelasSaatIni}\nSemester: ${semesterAktif === 'smt1' ? '1' : '2'}?\n\nData yang dihapus tidak bisa dikembalikan!`)) return;
+
+            const namaFile = `${mapelOtomatis}_${kelasSaatIni}_${semesterAktif}`;
+            
+            try {
+                await db.collection("nilai_siswa").doc(namaFile).delete();
+                alert("🗑️ Data nilai berhasil dibersihkan!");
+                // Tidak perlu reload, listener akan otomatis mengosongkan tabel
+            } catch(e) {
+                alert("Gagal reset: " + e.message);
+            }
+        }
+
+        function gantiMapelManual() {
+            if(!isGuruKelas) {
+                mapelOtomatis = document.getElementById('pilihMapel').value;
+                document.getElementById('labelMapelDisplay').innerText = mapelOtomatis;
+                if(kelasSaatIni) listenDataNilai();
+                updateTombolSimpan();
+            }
+        }
+
+        function gantiMode(mode) {
+            modeSaatIni = mode;
+            document.getElementById('tabAbsen').className = mode === 'absen' ? "tab-btn active-tab" : "tab-btn";
+            document.getElementById('tabNilai').className = mode === 'nilai' ? "tab-btn active-tab" : "tab-btn";
+            document.getElementById('viewAbsen').classList.toggle('hidden', mode !== 'absen');
+            document.getElementById('viewNilai').classList.toggle('hidden', mode !== 'nilai');
+            document.getElementById('judulMode').innerText = mode === 'absen' ? "Absensi" : "Penilaian";
+            if(mode === 'nilai') document.getElementById('controlsNilai').classList.remove('hidden');
+            else document.getElementById('controlsNilai').classList.add('hidden');
+            updateTombolSimpan();
+        }
+
+        function gantiSemester() {
+            semesterAktif = document.getElementById('pilihSemester').value;
+            document.getElementById('labelUjian').innerText = semesterAktif === 'smt1' ? "STS" : "SAS";
+            if(kelasSaatIni) listenDataNilai();
+        }
+
+        function updateTombolSimpan() {
+            document.getElementById('btnSimpan').innerText = `💾 SIMPAN ${modeSaatIni === 'absen' ? 'ABSEN' : 'NILAI'} (${mapelOtomatis})`;
+        }
+
+        function setAbsenManual(id, status, btn) {
+            dataAbsenHarian[id] = status;
+            Array.from(btn.parentElement.children).forEach(b => {
+                b.className = "w-7 h-7 rounded-full border text-[10px] font-bold text-gray-400 hover:bg-gray-100";
+            });
+            const color = status === 'H' ? 'green' : status === 'S' ? 'blue' : status === 'I' ? 'yellow' : 'red';
+            btn.className = `w-7 h-7 rounded-full border text-[10px] font-bold bg-${color}-500 text-white border-${color}-500`;
+        }
+
+        function toggleKamera() {
+            const r = document.getElementById('reader');
+            if(r.style.display==='block') { r.style.display='none'; if(html5QrcodeScanner) html5QrcodeScanner.clear(); }
+            else { r.style.display='block'; html5QrcodeScanner = new Html5QrcodeScanner("reader", {fps:10, qrbox:250}); html5QrcodeScanner.render((txt)=>{alert("QR: "+txt);}, ()=>{}); }
+        }
+
+        function laporWaGrup() {
+            window.open(`https://wa.me/?text=Laporan%20Absensi%20Kelas%20${kelasSaatIni}%20(${mapelOtomatis})`, '_blank');
+        }
+        
+        function downloadNilai() {
+            const tabel = document.getElementById('tabelUtama');
+            XLSX.writeFile(XLSX.utils.table_to_book(tabel), `Nilai_${mapelOtomatis}_${kelasSaatIni}.xlsx`);
+        }
+
+        function keluarAplikasi() {
+            if(confirm("Yakin ingin logout?")) {
+                sessionStorage.clear();
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>
