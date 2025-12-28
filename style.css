@@ -1,0 +1,48 @@
+/* GLOBAL */
+body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; }
+.navbar { background: #007bff; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.navbar h2 { margin: 0; font-size: 18px; }
+.btn-logout { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+
+/* CONTAINER & CARD */
+.container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
+.card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.card-header { font-weight: bold; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px; }
+
+/* FORM */
+input[type="text"], input[type="password"], select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+.btn-login { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+.btn-login:hover { background: #0056b3; }
+
+/* ABSENSI (Bulatan) */
+#listAbsensiContainer { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-bottom: 15px; }
+.absensi-item { background: #fff; border: 1px solid #eee; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+.siswa-name { font-size: 13px; font-weight: 600; }
+.status-container { display: flex; gap: 3px; }
+.status-btn { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; font-weight: bold; color: #aaa; }
+
+/* WARNA STATUS */
+.active-h { background-color: #28a745; color: white; border-color: #28a745; }
+.active-s { background-color: #ffc107; color: white; border-color: #ffc107; }
+.active-i { background-color: #17a2b8; color: white; border-color: #17a2b8; }
+.active-a { background-color: #dc3545; color: white; border-color: #dc3545; }
+
+/* STATS BOX */
+.stats-box { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+.stat-item { flex: 1; padding: 10px; border-radius: 5px; color: white; text-align: center; font-size: 12px; }
+
+/* TABEL */
+.table-responsive { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+th { background-color: #f8f9fa; }
+input.inp-n { width: 40px; text-align: center; border: 1px solid #ccc; padding: 4px; border-radius: 3px; }
+.col-nama { text-align: left; min-width: 150px; }
+
+/* UTILS */
+.btn-action { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; margin-right: 5px; }
+.btn-green { background: #28a745; }
+.btn-wa { background: #25D366; }
+.btn-danger { background: #dc3545; width: 100%; margin-top: 20px; }
+.text-center { text-align: center; }
+.alert { padding: 10px; background: #f8d7da; color: #721c24; margin-bottom: 15px; border-radius: 5px; display: none; }

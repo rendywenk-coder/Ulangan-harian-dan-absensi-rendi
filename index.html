@@ -17,6 +17,14 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.5);
         }
+        /* Tambahan animasi untuk pesan error */
+        .error-fade {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen px-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -24,36 +32,50 @@
     <div class="glass-effect p-8 rounded-3xl shadow-2xl w-full max-w-sm">
         <div class="text-center mb-6">
             <h1 class="text-2xl font-bold text-gray-800">Portal Guru 🏫</h1>
-            <p class="text-sm text-gray-500">Silakan Login atau Daftar Email</p>
+            <p class="text-sm text-gray-500">Silakan Login atau Daftar dengan Email Sekolah</p>
         </div>
 
         <div class="space-y-4">
             <div>
-                <label class="text-xs font-bold text-gray-600 ml-1">Email Sekolah</label>
+                <label for="email" class="block text-xs font-bold text-gray-600 ml-1 mb-1">Email Sekolah</label>
                 <input type="email" id="email" placeholder="nama@sekolah.com" 
-                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-all"
+                    required aria-required="true" aria-label="Email Sekolah">
             </div>
             
             <div>
-                <label class="text-xs font-bold text-gray-600 ml-1">Password</label>
+                <div class="flex justify-between items-center mb-1">
+                    <label for="password" class="block text-xs font-bold text-gray-600 ml-1">Password</label>
+                    <button type="button" id="togglePass" class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                        Lihat
+                    </button>
+                </div>
                 <input type="password" id="password" placeholder="********" 
-                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-all"
+                    required aria-required="true" aria-label="Password">
             </div>
 
-            <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all active:scale-95">
-                MASUK (LOGIN) 🚀
+            <!-- Tambahan tombol lupa password -->
+            <div class="text-right">
+                <button type="button" onclick="lupaPassword()" class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                    Lupa Password?
+                </button>
+            </div>
+
+            <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                <span>MASUK (LOGIN)</span> 🚀
             </button>
             
-            <button onclick="daftar()" class="w-full bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 rounded-xl shadow-sm transition-all text-sm">
-                Belum punya akun? DAFTAR
+            <button onclick="daftar()" class="w-full bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 rounded-xl shadow-sm transition-all text-sm flex items-center justify-center gap-1">
+                <span>Belum punya akun? DAFTAR</span>
             </button>
         </div>
         
-        <p id="pesanError" class="mt-4 text-center text-red-500 text-xs font-bold"></p>
+        <p id="pesanError" class="mt-4 text-center text-red-500 text-xs font-bold error-fade hidden"></p>
     </div>
 
     <script>
-        // 1. CONFIG FIREBASE
+        // 1. CONFIG FIREBASE (TIDAK DIUBAH)
         const firebaseConfig = {
             apiKey: "AIzaSyCBag0TddnPkC8pVDxAFDWAvFpmQRED3XU",
             authDomain: "pembelajaran-digital-rendi.firebaseapp.com",
@@ -68,53 +90,128 @@
         }
         const auth = firebase.auth();
 
-        // 2. FUNGSI LOGIN (DENGAN PENYIMPANAN SESI)
+        // 2. FUNGSI LOGIN (DIOPTIMASI TANPA MERUSAK PONDASI)
         function login() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
-            const btn = document.querySelector('button');
+            const btnLogin = document.querySelector('button[onclick="login()"]'); // Target tombol login spesifik
+            const pesanError = document.getElementById('pesanError');
 
-            if(!email || !pass) { alert("Isi email dan password dulu Pak/Bu!"); return; }
+            // Reset pesan error sebelum proses
+            pesanError.classList.add('hidden');
 
-            btn.innerText = "Mengecek Data...";
+            if(!email || !pass) { 
+                tampilkanError("Isi email dan password dulu Pak/Bu!");
+                return; 
+            }
+
+            // Validasi format email sederhana
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if(!emailRegex.test(email)) {
+                tampilkanError("Format email tidak valid (contoh: nama@sekolah.com)");
+                return;
+            }
+
+            btnLogin.disabled = true; // Nonaktifkan tombol agar tidak diklik berulang
+            btnLogin.innerText = "Mengecek Data...";
             
             auth.signInWithEmailAndPassword(email, pass)
                 .then((userCredential) => {
-                    // --- KUNCI PERBAIKAN DI SINI ---
-                    // Kita simpan status login di Session Storage agar Dashboard langsung mengenali
+                    // Penyimpanan sesi tetap ada (pondasi tidak diubah)
                     sessionStorage.setItem('emailGuru', userCredential.user.email);
                     sessionStorage.setItem('tokenAkses', 'sah');
 
-                    // Langsung pindah ke Dashboard
                     window.location.href = "dashboard.html";
                 })
                 .catch((error) => {
-                    btn.innerText = "MASUK (LOGIN) 🚀";
+                    btnLogin.disabled = false;
+                    btnLogin.innerText = "MASUK (LOGIN) 🚀";
                     let pesan = error.message;
                     if(error.code === 'auth/user-not-found') pesan = "Email tidak terdaftar.";
                     if(error.code === 'auth/wrong-password') pesan = "Password salah.";
-                    document.getElementById('pesanError').innerText = "⛔ " + pesan;
+                    if(error.code === 'auth/invalid-email') pesan = "Format email tidak valid.";
+                    tampilkanError("⛔ " + pesan);
                 });
         }
 
-        // 3. FUNGSI DAFTAR BARU
+        // 3. FUNGSI DAFTAR BARU (DIOPTIMASI TANPA MERUSAK PONDASI)
         function daftar() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
+            const pesanError = document.getElementById('pesanError');
 
-            if(!email || !pass) { alert("Isi email dan password yang ingin didaftarkan!"); return; }
-            if(pass.length < 6) { alert("Password minimal 6 karakter!"); return; }
+            pesanError.classList.add('hidden');
+
+            if(!email || !pass) { 
+                tampilkanError("Isi email dan password yang ingin didaftarkan!");
+                return; 
+            }
+            if(pass.length < 6) { 
+                tampilkanError("Password minimal 6 karakter!");
+                return; 
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if(!emailRegex.test(email)) {
+                tampilkanError("Format email tidak valid (harus menggunakan @sekolah.com)");
+                return;
+            }
 
             if(confirm("Daftarkan email ini sebagai Guru baru?")) {
                 auth.createUserWithEmailAndPassword(email, pass)
                     .then((userCredential) => {
                         alert("✅ Pendaftaran Berhasil! Silakan Login.");
+                        document.getElementById('password').value = ""; // Kosongkan password setelah daftar
                     })
                     .catch((error) => {
-                        alert("Gagal Daftar: " + error.message);
+                        let pesan = error.message;
+                        if(error.code === 'auth/email-already-in-use') pesan = "Email sudah terdaftar.";
+                        tampilkanError("Gagal Daftar: " + pesan);
                     });
             }
         }
+
+        // 4. FUNGSI BARU: TOGGLE TAMPILKAN/Sembunyikan PASSWORD (Tidak merusak pondasi)
+        function initTogglePassword() {
+            const toggleBtn = document.getElementById('togglePass');
+            const passInput = document.getElementById('password');
+            
+            toggleBtn.addEventListener('click', () => {
+                const type = passInput.type === 'password' ? 'text' : 'password';
+                passInput.type = type;
+                toggleBtn.innerText = type === 'password' ? 'Lihat' : 'Sembunyikan';
+            });
+        }
+
+        // 5. FUNGSI BARU: LUPA PASSWORD (Menggunakan Firebase Auth, tidak merusak pondasi)
+        function lupaPassword() {
+            const email = document.getElementById('email').value;
+            const pesanError = document.getElementById('pesanError');
+
+            if(!email) {
+                tampilkanError("Masukkan email terlebih dahulu untuk mengirim tautan reset password!");
+                return;
+            }
+
+            auth.sendPasswordResetEmail(email)
+                .then(() => {
+                    alert("✅ Tautan reset password sudah dikirim ke email Anda! Periksa kotak masuk atau spam.");
+                })
+                .catch((error) => {
+                    let pesan = error.message;
+                    if(error.code === 'auth/user-not-found') pesan = "Email tidak terdaftar.";
+                    tampilkanError("Gagal: " + pesan);
+                });
+        }
+
+        // 6. FUNGSI BANTUAN: TAMPILKAN PESAN ERROR (Terpusat, lebih rapi)
+        function tampilkanError(pesan) {
+            const pesanError = document.getElementById('pesanError');
+            pesanError.innerText = pesan;
+            pesanError.classList.remove('hidden');
+        }
+
+        // Inisialisasi toggle password saat halaman siap
+        document.addEventListener('DOMContentLoaded', initTogglePassword);
     </script>
 </body>
 </html>
